@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:netsuite="http://www.mulesoft.org/schema/mule/netsuite"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:oauth="http://www.mulesoft.org/schema/mule/oauth" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd 
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd 
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/oauth http://www.mulesoft.org/schema/mule/oauth/current/mule-oauth.xsd
+http://www.mulesoft.org/schema/mule/netsuite http://www.mulesoft.org/schema/mule/netsuite/current/mule-netsuite.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+    <http:listener-config name="main-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+    <apikit:config name="main-config" api="resource::599e3452-9a64-426b-b06c-a93fd81715de:turistickaagencija:1.0.2:raml:zip:main.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" queryParamsStrictValidation="true"/>
+    <db:config name="Database_Config" doc:name="Database Config" doc:id="4b97291c-c941-4c56-8b04-2453fef37df3" >
+		<db:generic-connection url="jdbc:postgresql://localhost:5432/anypoint" driverClassName="org.postgresql.Driver" user="postgres" password="postgres" />
+	</db:config>
+    <flow name="main-main" doc:id="8dd371a5-de2b-4034-8e26-01b4cde3a997">
+		<http:listener doc:name="Listener" doc:id="5f74f71d-0bad-492a-b902-6d4a8e2d677f" config-ref="main-httpListenerConfig" path="/*">
+			<http:response statusCode="#[vars.httpStatus default 200]">
+				<http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+			</http:response>
+			<http:error-response statusCode="#[vars.httpStatus default 500]">
+				<http:body><![CDATA[#[payload]]]></http:body>
+				<http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+			</http:error-response>
+		</http:listener>
+		<apikit:router doc:name="APIkit Router" doc:id="1e51d8cc-7d06-4347-bc24-f359ae6c6907" config-ref="main-config" />
+		<error-handler>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="16fc3b30-0cd3-4ba4-b7a8-97b557cff1ff" type="APIKIT:BAD_REQUEST">
+				<ee:transform doc:name="Transform Message" doc:id="0c385f17-d058-4e67-9a9f-2639ae6fd2f3">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="2bf25b26-4aa1-402e-beaa-ddaf25598933" type="APIKIT:NOT_FOUND">
+				<ee:transform doc:name="Transform Message" doc:id="d03fda41-5ac0-4c45-9fc2-888ba02af918">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[404]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="cf6bf1b8-9632-41b7-9935-6666ae9521a0" type="APIKIT:METHOD_NOT_ALLOWED">
+				<ee:transform doc:name="Transform Message" doc:id="3ca78048-29d1-4244-87dc-4cc93813d9de">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[405]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="9f12ce4c-9b84-4624-894c-ca18c1aba828" type="APIKIT:NOT_ACCEPTABLE">
+				<ee:transform doc:name="Transform Message" doc:id="832b52d4-3099-4320-87ae-7144ec2f8038">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[406]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="68b250d0-65a5-4ba5-9a98-7a33ee4990e8" type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+				<ee:transform doc:name="Transform Message" doc:id="8f8ec937-4432-43d7-bd2d-43c36d2c340a">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[415]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="3f0f0a01-5179-4ec8-94a7-45265eae93ba" type="APIKIT:NOT_IMPLEMENTED">
+				<ee:transform doc:name="Transform Message" doc:id="050391d1-136e-430a-ad00-f9d8b41d9901">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[501]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="main-console" doc:id="5fd1c77f-4412-403f-b361-a6ee1aa0ea09">
+		<http:listener doc:name="Listener" doc:id="b42f7917-c95b-4e9e-8339-0b19d5790f66" config-ref="main-httpListenerConfig" path="/console/*">
+			<http:response statusCode="#[vars.httpStatus default 200]">
+				<http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+			</http:response>
+			<http:error-response statusCode="#[vars.httpStatus default 500]">
+				<http:body><![CDATA[#[payload]]]></http:body>
+				<http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+			</http:error-response>
+		</http:listener>
+		<apikit:console doc:name="APIkit Console" doc:id="6bf4a9f9-7be6-4f9a-89ba-0fd39c398ac3" config-ref="main-config" />
+		<error-handler>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="6e1c675a-814c-456b-ac39-e6e40b7474fb" type="APIKIT:NOT_FOUND">
+				<ee:transform doc:name="Transform Message" doc:id="1be07154-4ee2-48f8-bc19-ea3eb018e84d">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[404]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="put:\turisticka_agencija\(agencijaID):application\json:main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="c28eadfd-2460-4e6d-9253-60bf2d471b53" name="putTuristickaAgencija"/>
+    </flow>
+	<flow name="put:\aranzman\(aranzmanID):application\json:main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="00a9ba24-35ed-46fa-9096-388594bac403" name="putAranzman"/>
+    </flow>
+    <flow name="put:\destinacija\(destinacijaID):application\json:main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="794662b3-e877-407e-b786-15d5454caf2e" name="putDestinacija"/>
+    </flow>
+    <flow name="put:\hotel\(hotelID):application\json:main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="64632629-e1a4-4d67-b044-d54f703726f6" name="putHotel"/>
+    </flow>
+	<flow name="delete:\turisticka_agencija\(agencijaID):main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="c96f820e-55e6-4afd-b26d-6cdc108dc50d" name="deleteTuristickaAgencijaByID"/>
+    </flow>
+    <flow name="delete:\aranzman\(aranzmanID):main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="80266f4a-5378-4bea-a353-d04db296bf9e" name="deleteAranzmanByID"/>
+    </flow>
+    <flow name="get:\aranzman:main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="3307cdb5-4fb3-431a-a62a-54a4533994b8" name="getAranzman"/>
+    </flow>
+	<flow name="delete:\destinacija\(destinacijaID):main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="c08ef55f-e943-44ad-8512-785208ff7e5c" name="deleteDestinacijaByID"/>
+    </flow>
+    <flow name="delete:\hotel\(hotelID):main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="f56c2e0c-3a46-4fa2-9dc4-4166e12c90fd" name="deleteHotelByID"/>
+    </flow>
+    <flow name="get:\hotel:main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="f9b00b64-b07a-4f44-abf1-2246364301d2" name="getHotel"/>
+    </flow>
+	<flow name="get:\destinacija:main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="d7a09c74-67c3-4f41-979d-c29fb3114ac5" name="getDestinacija"/>
+    </flow>
+	<flow name="get:\turisticka_agencija:main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="d3e10741-3def-4824-b0d5-a0dcb1ebbc04" name="getTuristickaAgencija"/>
+				
+    </flow>
+	<flow name="get:\turisticka_agencija\(agencijaID):main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="d9ab9296-f305-4331-80eb-c387e1040ec7" name="getTuristickaAgencijaByID"/>
+    </flow>
+	<flow name="get:\aranzman\(aranzmanID):main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="0d9ada77-f30a-45e9-9ba3-c0789374953f" name="getAranzmanByID"/>
+    </flow>
+	<flow name="get:\destinacija\(destinacijaID):main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="0b48b9c6-1415-41d3-b2c2-c745a791cfa3" name="getDestinacijaByID"/>
+</flow>
+	<flow name="get:\hotel\(hotelID):main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="c1b22e40-5ba9-45a9-9388-3f1b091bd259" name="getHotelByID"/>
+    </flow>
+    <flow name="post:\aranzman:application\json:main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="29aa72ee-f7e7-4736-993d-7e6ddbb13515" name="postAranzman"/>
+</flow>
+	<flow name="post:\destinacija:application\json:main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="32f0332d-1558-4842-b3c1-5fa4901ce619" name="postDestinacija"/>
+    </flow>
+	<flow name="post:\hotel:application\json:main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="0e610f9d-b4b2-4c7d-a663-2e058f7bc627" name="postHotel"/>
+</flow>
+	<flow name="post:\turisticka_agencija:application\json:main-config">
+		<flow-ref doc:name="Flow Reference" doc:id="dc139a39-7952-4939-909e-22d960421265" name="postTuristickaAgencija"/>
+    </flow>
+</mule>

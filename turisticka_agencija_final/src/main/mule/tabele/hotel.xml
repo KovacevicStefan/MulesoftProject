@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<flow name="getHotel" doc:id="8d0dd07d-d8af-4439-9fe6-46da54e98c58">
+		<http:listener doc:name="Listener" doc:id="bf46c9bc-f030-4c20-ad7c-c83adafcce51" config-ref="main-httpListenerConfig" path="/hotel">
+			<http:error-response statusCode="404" />
+		</http:listener>
+		<db:select doc:name="Select" doc:id="ef4ab205-1ae8-45c5-a508-279bebd4141e" config-ref="Database_Config">
+			<db:sql><![CDATA[SELECT h.hotelID, h.naziv, h.broj_zvezdica, h.ima_bazen, h.opis, d.destinacijaID, d.mesto, d.drzava, d.opis AS destinacija_opis
+FROM hotel h JOIN destinacija d ON h.destinacijaID = d.destinacijaID
+where ima_bazen=:ima_bazen
+                  ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{'ima_bazen': attributes.queryParams.ima_bazen}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="365480ba-caa4-4d71-a3cf-aa102a4c8f5c">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+
+payload map (item) ->{
+  hotelID: item.hotelID,
+  naziv: item.naziv,
+  broj_zvezdica: item.broj_zvezdica,
+  ima_bazen: item.ima_bazen,
+  opis: item.opis,
+  destinacija: {
+    destinacijaID: item.destinacijaID,
+    mesto: item.mesto,
+    drzava: item.drzava,
+    opis: item.destinacija_opis
+  	}
+  }]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="postHotel" doc:id="b90afbaf-5145-442b-8dbe-d4233516c14f">
+		<http:listener doc:name="Listener" doc:id="7aa00d55-271e-470b-b936-679ffa8d9b8d" config-ref="main-httpListenerConfig" path="/hotel" allowedMethods="POST">
+			<http:response statusCode="#[vars.httpStatus]" />
+		</http:listener>
+		<choice doc:name="Choice" doc:id="7f3ebb35-56fb-4777-9c43-76ccedb382b6">
+			<when expression="#[payload.broj_zvezdica &lt; 1 or payload.broj_zvezdica &gt; 5 or isEmpty(payload.destinacija.destinacijaid)]">
+				<set-variable value="400" doc:name="Set HTTP Status" doc:id="6e21d2ed-18a1-4bd7-8d9f-aed15ee1821d" variableName="httpStatus" />
+				<ee:transform doc:name="Transform Message" doc:id="4f98b605-ca77-4406-8c1c-7a1990cf1d2f">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Zahtev nije dobro napisan!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<set-variable value="201" doc:name="Set HTTP Status" doc:id="4a63a4ab-e0e2-4885-a82e-89e5deb3c9c2" variableName="httpStatus" />
+				<db:insert doc:name="Insert" doc:id="257db119-1b26-4448-a79f-0ad2f9ad682c" config-ref="Database_Config">
+					<db:sql><![CDATA[INSERT INTO hotel (naziv, broj_zvezdica, ima_bazen, opis, destinacijaid)
+VALUES (:naziv, :broj_zvezdica, :ima_bazen, :opis, :destinacijaid)
+]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+    naziv: payload.naziv,
+    broj_zvezdica: payload.broj_zvezdica,
+    ima_bazen: payload.ima_bazen,
+    opis: payload.opis,
+    destinacijaid: payload.destinacija.destinacijaid
+}]]]></db:input-parameters>
+				</db:insert>
+				<ee:transform doc:name="Transform Message" doc:id="7dde9b4c-2d77-488c-992b-125b07cb800c">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Hotel upisan!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="getHotelByID" doc:id="29180f57-7fe8-4271-bbd6-2757ee793a4a">
+		<db:select doc:name="Select" doc:id="f7a38860-b3ab-4865-81ab-34b50ddbbadb" config-ref="Database_Config">
+			<db:sql><![CDATA[SELECT h.hotelID, h.naziv, h.broj_zvezdica, h.ima_bazen, h.opis, d.destinacijaID, d.mesto, d.drzava, d.opis AS destinacija_opis
+                  FROM hotel h
+                  JOIN destinacija d ON h.destinacijaID = d.destinacijaID
+                  WHERE h.hotelID = :hotelID]]></db:sql>
+			<db:input-parameters><![CDATA[#[{'hotelID' : attributes.uriParams.hotelID}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="70c69e72-db85-41fe-a87e-c8004493dbc9">
+			<when expression="#[isEmpty(payload)]">
+				<set-variable value="404" doc:name="Set HTTP Status" doc:id="0166cf32-4707-4c86-b0e9-e736ca6558f7" variableName="httpStatus" />
+				<ee:transform doc:name="Transform Message" doc:id="33307c77-a10f-430e-86d1-c1b211e7f47f">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Hotel ne postoji!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform Message" doc:id="5bbf0059-131f-4dd2-aa23-20ab4e985c0a">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+
+output application/json
+
+---
+
+{
+  hotelID: payload[0].hotelID,
+  naziv: payload[0].naziv,
+  broj_zvezdica: payload[0].broj_zvezdica,
+  ima_bazen: payload[0].ima_bazen,
+  opis: payload[0].opis,
+  destinacija: {
+    destinacijaID: payload[0].destinacijaID,
+    mesto: payload[0].mesto,
+    drzava: payload[0].drzava,
+    opis: payload[0].destinacija_opis
+  	}
+  }]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="putHotel" doc:id="7e3338ca-570c-4c12-a3c3-1f8ef2d8dfa8" >
+		<http:listener doc:name="Listener" doc:id="99bda3ec-b104-4ec3-bae4-823bde99af63" config-ref="main-httpListenerConfig" path="/hotel/{hotelID}" allowedMethods="PUT" >
+			<http:response statusCode="#[vars.httpStatus]" />
+		</http:listener>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="92efdcf3-f74d-4449-815d-e9cf4e612f2f" variableName="variable" />
+		<db:select doc:name="Select" doc:id="62a57cf9-aa9b-4590-8217-3fc99b71675f" config-ref="Database_Config" >
+			<db:sql ><![CDATA[select * from hotel where hotelid = :hotelID]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{hotelID: attributes.uriParams.hotelID}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="01ab23c2-7048-44fe-855c-c027ba8dcfd2" >
+			<when expression="#[isEmpty(payload)]" >
+				<set-variable value="201" doc:name="Set HTTP Status" doc:id="3c04259c-00ce-42b7-ad1f-df5268a2b48d" variableName="httpStatus" />
+				<db:insert doc:name="Insert" doc:id="aefee3f1-bd3f-4ac8-8c1e-69cba93b4cb8" config-ref="Database_Config" >
+					<db:sql ><![CDATA[INSERT INTO hotel (hotelid, naziv, broj_zvezdica, ima_bazen , opis, destinacijaid)
+VALUES (:hotelid, :naziv, :broj_zvezdica, :ima_bazen, :opis, :destinacijaid)]]></db:sql>
+					<db:input-parameters ><![CDATA[#[{
+	hotelid: vars."variable".hotelid,
+	naziv: vars."variable".naziv,
+	broj_zvezdica: vars."variable".broj_zvezdica,
+	ima_bazen: vars."variable".ima_bazen,   
+	opis: vars."variable".opis,
+	destinacijaid: vars."variable".destinacija.destinacijaid 
+}]]]></db:input-parameters>
+				</db:insert>
+				<ee:transform doc:name="Transform Message" doc:id="a95bbf67-08ec-441b-8029-63f4f4f48407" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Hotel je upisan!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<set-variable value="200" doc:name="Set HTTP Status" doc:id="589dead6-347e-4306-bea1-1de09c222e78" variableName="httpStatus" />
+				<db:update doc:name="Update" doc:id="529319d4-c511-4c8c-93a6-b1b2aae72784" config-ref="Database_Config" >
+					<db:sql ><![CDATA[update hotel
+set hotelid = :hotel_novi,
+naziv = :naziv,
+broj_zvezdica = :broj_zvezdica,
+ima_bazen = :ima_bazen,
+opis = :opis,
+destinacijaid = :destinacijaid
+where hotelid = :hotelid]]></db:sql>
+					<db:input-parameters ><![CDATA[#[{
+	hotelid: payload[0].hotelid,
+	hotel_novi: vars."variable".hotelid,
+	naziv: vars."variable".naziv,
+	broj_zvezdica: vars."variable".broj_zvezdica,
+	ima_bazen: vars."variable".ima_bazen,   
+	opis: vars."variable".opis,
+	destinacijaid: vars."variable".destinacija.destinacijaid 
+}]]]></db:input-parameters>
+				</db:update>
+				<ee:transform doc:name="Transform Message" doc:id="15bc6de5-c606-464c-b940-035595943a9d">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Hotel je azuriran!"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="deleteHotelByID" doc:id="a879f2a9-5431-4f5d-be03-6ce4fa555a08" >
+		<set-variable value="#[attributes.uriParams.hotelID]" doc:name="Set Variable" doc:id="3f0137b4-552d-43dd-8290-7f984e21ea48" variableName="var" />
+		<db:select doc:name="Select" doc:id="2d339e99-1f1f-49fe-8674-bd2be5d0073a" config-ref="Database_Config" >
+			<db:sql ><![CDATA[select * from hotel where hotelID=:hotelID]]></db:sql>
+			<db:parameter-types />
+			<db:input-parameters ><![CDATA[#[{'hotelID' : vars."var"}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="d034245d-3aeb-4323-b905-f75defe00f75" >
+			<when expression="#[isEmpty(payload)]" >
+				<set-variable value="404" doc:name="Set HTTP Status" doc:id="cdae4452-9d3e-47ee-96c8-5ad3abac1115" variableName="httpStatus" />
+				<ee:transform doc:name="Transform Message" doc:id="9f76dd6f-d0df-4bf9-93d4-cd280269010e" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Hotel sa ovim ID-om ne postoji!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<db:delete doc:name="Delete" doc:id="47aadac9-8034-4b07-aacf-ec34d4892b17" config-ref="Database_Config" >
+					<db:sql ><![CDATA[delete from hotel
+where hotelID=:hotelID]]></db:sql>
+					<db:input-parameters ><![CDATA[#[{'hotelID' : vars."var"}]]]></db:input-parameters>
+				</db:delete>
+				<ee:transform doc:name="Transform Message" doc:id="b3ec186e-7631-4609-a7a9-d93abad8ea0c" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Hotel izbrisan!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+</mule>

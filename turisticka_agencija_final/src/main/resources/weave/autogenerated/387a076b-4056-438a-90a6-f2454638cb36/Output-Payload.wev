@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_387a076b_4056_438a_90a6_f2454638cb36_Output_Payload = Array<{  aranzmanID: Number,   datum_realizacije: String,   agencija: {    turistickaAgencijaID: Number,     naziv: String,     adresa: String,     kontakt: String,     _?: Any  },   hotel: {    broj_zvezdica: "1" | "2" | "3" | "4" | "5",     naziv: String,     destinacija: {      destinacijaID: Number,       drzava: String,       mesto: String,       opis: String,       _?: Any    },     hotelID: Number,     opis: String,     _?: Any  },   realizovan: Boolean,   ukupna_cena: Number,   _?: Any}>
+

@@ -1,0 +1,18 @@
+%dw 2.0
+
+type auto_29180f57_7fe8_4271_bbd6_2757ee793a4a_Output_Payload = {
+  broj_zvezdica: "1" | "2" | "3" | "4" | "5", 
+  naziv: String, 
+  destinacija: {
+    destinacijaID: Number, 
+    drzava: String, 
+    mesto: String, 
+    opis: String, 
+    _?: Any
+  }, 
+  hotelID: Number, 
+  ima_bazen: Boolean, 
+  opis: String, 
+  _?: Any
+}
+

@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<flow name="getTuristickaAgencija" doc:id="ba5e5801-9547-4002-bacb-2a28619eb614">
+		<db:select doc:name="Select" doc:id="cb6cfc3e-6cba-45fe-b302-0c29688a7c09" config-ref="Database_Config">
+			<db:sql><![CDATA[select * from turisticka_agencija]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="9adc07f2-862b-4bb8-8159-a34af4d3a5cc">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="postTuristickaAgencija" doc:id="2e2087e4-453d-4458-ac5a-c86b6eb81a82">
+		<http:listener doc:name="Listener" doc:id="428b9b09-def8-4cc0-a7ae-e8984de9b4bf" config-ref="main-httpListenerConfig" path="/turisticka_agencija" allowedMethods="POST">
+			<http:response statusCode="#[vars.httpStatus]" />
+		</http:listener>
+		<choice doc:name="Choice" doc:id="2fed162b-e8fd-45b7-8ee1-84e02155ddfc">
+			<when expression="#[isEmpty(payload.naziv) or isEmpty(payload.adresa) or isEmpty(payload.kontakt)]">
+				<set-variable value="400" doc:name="Set HTTP Status" doc:id="bb6985be-20e8-41df-aee8-13f8e4e47bd0" variableName="httpStatus" />
+				<ee:transform doc:name="Transform Message" doc:id="b2d83d74-858f-421a-a359-0fc6f1e43f4c" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Zahtev nije dobro napisan!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<set-variable value="201" doc:name="Set HTTP Status" doc:id="42aad381-507a-4c25-8fb2-ec9a56910ffa" variableName="httpStatus" />
+				<db:insert doc:name="Insert" doc:id="8393c027-fdfb-4982-a3d0-93c54b84827c" config-ref="Database_Config">
+			<db:sql><![CDATA[INSERT INTO turisticka_agencija (naziv, adresa, kontakt)
+values (:naziv, :adresa, :kontakt)]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+    naziv: payload.naziv,
+    adresa: payload.adresa,    
+	kontakt: payload.kontakt
+}]]]></db:input-parameters>
+		</db:insert>
+				<ee:transform doc:name="Transform Message" doc:id="392dd7b6-7674-484f-b1ea-02cdcdbd168b">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Turisticka agencija je upisana!"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="getTuristickaAgencijaByID" doc:id="b03cf2ac-f68b-48a6-a09c-a112761f9814">
+		<db:select doc:name="Select" doc:id="edc6656f-736e-4667-8608-29c9d2985045" config-ref="Database_Config">
+			<db:sql><![CDATA[select * from turisticka_agencija where turistickaagencijaID=:turistickaagencijaID]]></db:sql>
+			<db:input-parameters><![CDATA[#[{'turistickaagencijaID' : attributes.uriParams.agencijaID}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="c511b6a6-65c6-40ed-b2ea-15c453eb680e">
+			<when expression="#[isEmpty(payload)]">
+				<set-variable value="404" doc:name="Set HTTP Status" doc:id="418bc6f9-6d2a-4e86-8a5c-df50d7b84c15" variableName="httpStatus" />
+				<ee:transform doc:name="Transform Message" doc:id="7c0e9580-7fab-4e90-a35a-bf94a149f86d">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Turisticka agencija sa ovim ID-om je nepostojeca!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform Message" doc:id="7db1f0fc-ef99-4600-ab3c-63927329a4c2">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="putTuristickaAgencija" doc:id="3d076176-e7da-4994-a5fe-c7a4b0f2830d" >
+		<http:listener doc:name="Listener" doc:id="3cdac81c-bbaa-4a84-8367-356aa574a442" config-ref="main-httpListenerConfig" path="turisticka_agencija/{agencijaID}" allowedMethods="PUT" />
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="8e46b9f4-39af-4ec8-982e-4c9a95ed6890" variableName="variable" />
+		<db:select doc:name="Select" doc:id="42ab01c3-ef47-4f74-bf3e-75b389c0325e" config-ref="Database_Config">
+			<db:sql><![CDATA[select * from turisticka_agencija where turistickaagencijaid=:turistickaAgencijaID]]></db:sql>
+			<db:input-parameters><![CDATA[#[{turistickaAgencijaID: attributes.uriParams.agencijaID}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="2d3ef245-fac1-4591-979a-c61f942b2e49" >
+			<when expression="#[isEmpty(payload)]" >
+				<set-variable value="201" doc:name="Set HTTP Status" doc:id="e0e8c2ea-5777-4687-9867-454bff30637c" variableName="httpStatus" />
+				<db:insert doc:name="Insert" doc:id="9bb0d514-4133-41e6-9e68-f18662d6ee78" config-ref="Database_Config" >
+					<db:sql ><![CDATA[INSERT INTO turisticka_agencija (turistickaagencijaid, naziv, adresa, kontakt)
+values (:turistickaagencijaid, :naziv, :adresa, :kontakt)]]></db:sql>
+					<db:input-parameters ><![CDATA[#[{
+	turistickaagencijaid: vars."variable".turistickaagencijaid,
+    naziv: vars."variable".naziv,
+    adresa: vars."variable".adresa,    
+	kontakt: vars."variable".kontakt
+}]]]></db:input-parameters>
+				</db:insert>
+				<ee:transform doc:name="Transform Message" doc:id="3b6c0511-2554-49ab-a5e4-3a7bd330cc0c" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Turisticka agencija je upisana!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<set-variable value="200" doc:name="Set HTTP Status" doc:id="1a8464ac-7968-4fd2-8d0b-1bf0706b7b14" variableName="httpStatus" />
+				<db:update doc:name="Update" doc:id="d1625361-6c0f-4eb1-8a96-3005d52ad98d" config-ref="Database_Config">
+					<db:sql><![CDATA[update turisticka_agencija
+set turistickaagencijaid = :turistickaagencija_novi,
+naziv = :naziv,
+adresa = :adresa,
+kontakt = :kontakt
+where turistickaagencijaID = :turistickaAgencijaid]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+	turistickaAgencijaid: payload[0].turistickaagencijaid,
+	turistickaagencija_novi: vars."variable".turistickaagencijaid,
+	naziv: vars."variable".naziv,
+	adresa: vars."variable".adresa,
+	kontakt: vars."variable".kontakt
+}]]]></db:input-parameters>
+				</db:update>
+				<ee:transform doc:name="Transform Message" doc:id="60b936ce-d00f-4a89-baa2-56f12159742f">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Turisticka agencija je azurirana!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="deleteTuristickaAgencijaByID" doc:id="27d20bf6-e125-4364-afe5-17793698d9f0" >
+		<set-variable value="#[attributes.uriParams.agencijaID]" doc:name="Set Variable" doc:id="84f2656c-b667-4c0e-805f-dfdf7d5640bb" variableName="var" />
+		<db:select doc:name="Select" doc:id="b453dbae-ffab-439e-a0f6-4d4b355c72d9" config-ref="Database_Config" >
+			<db:sql ><![CDATA[select * from turisticka_agencija where turistickaagencijaID=:turistickaagencijaID]]></db:sql>
+			<db:parameter-types />
+			<db:input-parameters ><![CDATA[#[{'turistickaagencijaID' : vars."var"}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="ce03f16a-fb93-4628-ba3a-31da18def782" >
+			<when expression="#[isEmpty(payload)]" >
+				<set-variable value="404" doc:name="Set HTTP Status" doc:id="ee55cbed-3737-4929-ba7d-2845b08d3098" variableName="httpStatus" />
+				<ee:transform doc:name="Transform Message" doc:id="b7c18fc7-d71a-4081-8807-33b27cd7e623" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Turisticka agencija sa ovim ID-om ne postoji!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<db:delete doc:name="Delete" doc:id="879802e7-03f3-46f1-978d-ebb9d74592d3" config-ref="Database_Config" >
+					<db:sql ><![CDATA[delete from turisticka_agencija
+where turistickaagencijaID=:turistickaagencijaID]]></db:sql>
+					<db:input-parameters ><![CDATA[#[{'turistickaagencijaID' : vars."var"}]]]></db:input-parameters>
+				</db:delete>
+				<ee:transform doc:name="Transform Message" doc:id="657a05b8-4291-4a78-a00d-989ea809cf8f" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Turistička agencija je izbrisana!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+</mule>

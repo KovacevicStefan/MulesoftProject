@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "aranzmanID": {
+      "type": "number"
+    },
+    "ukupna_cena": {
+      "type": "number"
+    },
+    "realizovan": {
+      "type": "boolean"
+    },
+    "datum_realizacije": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "hotel": {
+      "type": "object",
+      "properties": {
+        "hotelID": {
+          "type": "number"
+        },
+        "naziv": {
+          "type": "string"
+        },
+        "broj_zvezdica": {
+          "type": "number"
+        },
+        "ima_bazen": {
+          "type": "boolean"
+        },
+        "opis": {
+          "type": "string"
+        },
+        "destinacija": {
+          "type": "object",
+          "properties": {
+            "destinacijaID": {
+              "type": "number"
+            },
+            "mesto": {
+              "type": "string"
+            },
+            "drzava": {
+              "type": "string"
+            },
+            "opis": {
+              "type": "string"
+            }
+          },
+          "required": ["destinacijaID", "mesto", "drzava"]
+        }
+      },
+      "required": ["hotelID", "naziv", "broj_zvezdica", "ima_bazen", "opis", "destinacija"]
+    },
+    "turisticka_agencija": {
+      "type": "object",
+      "properties": {
+        "turistickaAgencijaID": {
+          "type": "number"
+        },
+        "naziv": {
+          "type": "string"
+        },
+        "adresa": {
+          "type": "string"
+        },
+        "kontakt": {
+          "type": "string"
+        }
+      },
+      "required": ["turistickaAgencijaID", "naziv", "adresa", "kontakt"]
+    }
+  },
+  "required": ["aranzmanID", "ukupna_cena", "realizovan", "datum_realizacije", "hotel", "turisticka_agencija"]
+}

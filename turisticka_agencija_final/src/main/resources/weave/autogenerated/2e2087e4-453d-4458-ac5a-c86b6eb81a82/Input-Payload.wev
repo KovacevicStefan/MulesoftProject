@@ -1,0 +1,10 @@
+%dw 2.0
+
+type auto_2e2087e4_453d_4458_ac5a_c86b6eb81a82_Input_Payload = {
+  turistickaAgencijaID: Number, 
+  naziv: String, 
+  adresa: String, 
+  kontakt: String, 
+  _?: Any
+}
+

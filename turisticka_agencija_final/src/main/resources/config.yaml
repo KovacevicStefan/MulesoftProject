@@ -1,0 +1,9 @@
+db:
+  host: localhost
+  port: "5432"
+  database: anypoint
+  username: postgres
+  password: postgres
+auto-run-sql:
+  enabled: "true"
+  scripts-folder: src/main/resources

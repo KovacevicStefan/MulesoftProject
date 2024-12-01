@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "aranzmanID": {
+      "type": "integer"
+    },
+    "ukupna_cena": {
+      "type": "integer"
+    },
+    "realizovan": {
+      "type": "boolean"
+    },
+    "datum_realizacije": {
+      "type": "string"
+    },
+    "hotel": {
+      "type": "integer"
+    },
+    "agencija": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "aranzmanID",
+    "ukupna_cena",
+    "realizovan",
+    "datum_realizacije",
+    "hotel",
+    "agencija"
+  ]
+}

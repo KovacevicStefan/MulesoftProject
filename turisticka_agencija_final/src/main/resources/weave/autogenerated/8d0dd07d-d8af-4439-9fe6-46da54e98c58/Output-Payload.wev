@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_8d0dd07d_d8af_4439_9fe6_46da54e98c58_Output_Payload = Array<{  broj_zvezdica: "1" | "2" | "3" | "4" | "5",   naziv: String,   destinacija: {    destinacijaID: Number,     drzava: String,     mesto: String,     opis: String,     _?: Any  },   hotelID: Number,   ima_bazen: Boolean,   opis: String,   _?: Any}>
+

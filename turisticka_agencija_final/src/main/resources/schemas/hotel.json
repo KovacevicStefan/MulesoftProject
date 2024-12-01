@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "naziv": {
+      "type": "string"
+    },
+    "broj_zvezdica": {
+      "type": "integer"
+    },
+    "ima_bazen": {
+      "type": "boolean"
+    },
+    "opis": {
+      "type": "string"
+    },
+    "destinacija": {
+      "type": "object",
+      "properties": {
+        "destinacijaID": {
+          "type": "integer"
+        },
+        "mesto": {
+          "type": "string"
+        },
+        "drzava": {
+          "type": "string"
+        },
+        "opis": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "destinacijaID",
+        "mesto",
+        "drzava",
+        "opis"
+      ]
+    }
+  },
+  "required": [
+    "naziv",
+    "broj_zvezdica",
+    "ima_bazen",
+    "opis",
+    "destinacija"
+  ]
+}

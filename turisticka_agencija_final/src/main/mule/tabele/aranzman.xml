@@ -1,0 +1,387 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+	<file:config name="File_Config" doc:name="File Config" doc:id="9b2ca5e3-60e3-4425-9883-ec96eff4e402" >
+		<file:connection workingDir="C:\Users\Stefan_Dusan_Ana\Desktop" />
+	</file:config>
+	<flow name="getAranzman" doc:id="387a076b-4056-438a-90a6-f2454638cb36">
+		<http:listener doc:name="Listener" doc:id="507313c7-00e6-445c-a2f4-e0887d15a092" config-ref="main-httpListenerConfig" path="/aranzman" allowedMethods="GET" />
+		<db:select doc:name="Select" doc:id="a693a0bf-0c25-4690-a748-27b5cb2ad7da" config-ref="Database_Config">
+			<db:sql><![CDATA[SELECT a.aranzmanID, a.ukupna_cena, a.realizovan, a.datum_realizacije,
+h.hotelID, h.naziv, h.broj_zvezdica, h.ima_bazen, h.opis,
+d.destinacijaID, d.mesto, d.drzava, d.opis AS destinacija_opis,
+ta.turistickaAgencijaID, ta.naziv AS agencija_naziv, ta.adresa, ta.kontakt
+FROM aranzman a
+JOIN hotel h ON a.hotelID = h.hotelID
+JOIN destinacija d ON h.destinacijaID = d.destinacijaID
+JOIN turisticka_agencija ta ON a.turistickaAgencijaID = ta.turistickaAgencijaID
+where realizovan=:realizovan]]></db:sql>
+			<db:input-parameters><![CDATA[#[{realizovan : attributes.queryParams.realizovan}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="97963451-ea29-4959-a33f-d9fe331a8a22">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload map (item) -> {
+  aranzmanID: item.aranzmanID,
+  ukupna_cena: item.ukupna_cena,
+  realizovan: item.realizovan,
+  datum_realizacije: item.datum_realizacije,
+  hotel: {
+    hotelID: item.hotelID,
+    naziv: item.naziv,
+    broj_zvezdica: item.broj_zvezdica,
+    ima_bazen: item.ima_bazen,
+    opis: item.opis,
+    destinacija: {
+      destinacijaID: item.destinacijaID,
+      mesto: item.mesto,
+      drzava: item.drzava,
+      opis: item.destinacija_opis
+    }
+  },
+  turisticka_agencija: {
+    turistickaAgencijaID: item.turistickaAgencijaID,
+    naziv: item.agencija_naziv,
+    adresa: item.adresa,
+    kontakt: item.kontakt
+  }
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="postAranzman" doc:id="e0d90f29-4de6-4079-b049-78a8c25f5f09">
+    <http:listener doc:name="Listener" doc:id="6cdee860-6739-4b81-8fc3-bb93e9d502c5" config-ref="main-httpListenerConfig" path="/aranzman" outputMimeType="application/json" allowedMethods="POST">
+        <http:response statusCode="#[vars.httpStatus]" />
+    </http:listener>
+    <choice doc:name="Choice" doc:id="2e396e06-d387-4687-b8d4-a92d39d4a8c6">
+        <when expression="#[isEmpty(payload.hotel.hotelid) or isEmpty(payload.agencija.turistickaagencijaid) or isEmpty(payload.datum_realizacije)]">
+            <set-variable value="400" doc:name="Set HTTP Status" doc:id="572487f3-4b49-46e4-aa38-847ba0f4ff9f" variableName="httpStatus" />
+            <ee:transform doc:name="Transform Message" doc:id="f9aba521-e0db-47cc-93db-5ebb349f18af">
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Zahtev nije dobro napisan!"
+}]]></ee:set-payload>
+                </ee:message>
+            </ee:transform>
+        </when>
+        <otherwise>
+            <set-variable value="201" doc:name="Set HTTP Status" doc:id="2aa851d2-910c-419b-84c3-a9c67dcfca4c" variableName="httpStatus" />
+            <db:insert doc:name="Insert" doc:id="3f31b036-b255-4620-983b-fd17546fd08e" config-ref="Database_Config">
+                <db:sql><![CDATA[INSERT INTO aranzman (ukupna_cena, realizovan, datum_realizacije, hotelid, turistickaagencijaid)
+VALUES (:ukupna_cena, :realizovan, :datum_realizacije, :hotelid, :turistickaagencijaid)]]></db:sql>
+                <db:input-parameters><![CDATA[#[{
+    ukupna_cena: payload.ukupna_cena,
+    realizovan: payload.realizovan,
+    datum_realizacije: payload.datum_realizacije,
+    hotelid: payload.hotel.hotelid,
+    turistickaagencijaid: payload.agencija.turistickaagencijaid
+}]]]></db:input-parameters>
+            </db:insert>
+            <db:select doc:name="Select" doc:id="32fa1c6b-92a5-46c8-a2c0-da70f9f68565" config-ref="Database_Config">
+                <db:sql><![CDATA[SELECT a.aranzmanID, a.ukupna_cena, a.realizovan, a.datum_realizacije,
+h.hotelID, h.naziv, h.broj_zvezdica, h.ima_bazen, h.opis,
+d.destinacijaID, d.mesto, d.drzava, d.opis AS destinacija_opis,
+ta.turistickaAgencijaID, ta.naziv AS agencija_naziv, ta.adresa, ta.kontakt
+FROM aranzman a
+JOIN hotel h ON a.hotelID = h.hotelID
+JOIN destinacija d ON h.destinacijaID = d.destinacijaID
+JOIN turisticka_agencija ta ON a.turistickaAgencijaID = ta.turistickaAgencijaID
+where aranzmanID = (SELECT MAX(aranzmanID) FROM aranzman)]]></db:sql>
+            </db:select>
+            <set-variable value="#[payload[0]]" doc:name="Set Variable" doc:id="a976e687-cb9e-4373-ad5d-6df65a138dee" variableName="try" />
+				<choice doc:name="Choice" doc:id="51cd7ddc-c647-403f-91a3-e5e561757307">
+                <when expression="#[vars.try.ukupna_cena &gt; 49999 and vars.try.broj_zvezdica == 5]">
+                    <ee:transform doc:name="Transform Message" doc:id="4a20d663-b139-4d11-9a96-eb7279fc358d">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload map (item) -> {
+  aranzmanID: item.aranzmanID,
+  ukupna_cena: (item.ukupna_cena default 0) * 0.8,
+  realizovan: item.realizovan,
+  datum_realizacije: item.datum_realizacije,
+  hotel: {
+    hotelID: item.hotelID,
+    naziv: item.naziv,
+    broj_zvezdica: item.broj_zvezdica,
+    ima_bazen: item.ima_bazen,
+    opis: item.opis,
+    destinacija: {
+      destinacijaID: item.destinacijaID,
+      mesto: item.mesto,
+      drzava: item.drzava,
+      opis: item.destinacija_opis
+    }
+  },
+  turisticka_agencija: {
+    turistickaAgencijaID: item.turistickaAgencijaID,
+    naziv: item.agencija_naziv,
+    adresa: item.adresa,
+    kontakt: item.kontakt
+  }
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<file:write doc:name="Write" doc:id="d8669e46-b466-43bf-b1ca-dab911604eed" config-ref="File_Config" path="C:\Users\Stefan_Dusan_Ana\AnypointStudio\studio-workspace\zadatak2023\src\main\resources\externalERP\eksterni_aranzmani.json" mode="APPEND" />
+                    <logger level="INFO" doc:name="Logger" doc:id="e5fc40e3-f813-4362-8074-ca2817767f88" message="#[payload]" />
+						<ee:transform doc:name="Transform Message" doc:id="a91036b7-5a3b-4849-9562-a38d059a4fe8">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Aranzman je upisan!",
+  lokacija: "ExternalERP"
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+                
+</when>
+                <otherwise>
+                    <ee:transform doc:name="Transform Message" doc:id="568072fa-18a3-48fd-b2cd-d027d7f7ceb8">
+                        <ee:message>
+                            <ee:set-payload><![CDATA[%dw 2.0
+output application/xml
+---
+{
+	aranzman: {
+		aranzmanID: payload.aranzmanid,
+		ukupna_cena: payload.ukupna_cena default 0,
+		realizovan: payload.realizovan default true,
+		datum_realizacije: payload.datum_realizacije as DateTime default |1815-12-10T08:15:00|,
+		hotel: {
+			hotelID: payload.hotelid,
+			naziv: payload.naziv,
+			broj_zvezdica: payload.broj_zvezdica default 0,
+			ima_bazen: payload.ima_bazen default true,
+			opis: payload.opis default "",
+			destinacija: {
+				destinacijaID: payload.destinacijaid,
+				mesto: payload.mesto,
+				drzava: payload.drzava,
+				opis: payload.destinacija_opis default ""
+			}
+		},
+		turisticka_agencija: {
+			turistickaAgencijaID: payload.turistickaagencijaid,
+			naziv: payload.agencija_naziv,
+			adresa: payload.adresa default "",
+			kontakt: payload.kontakt default ""
+		}
+	}
+}]]></ee:set-payload>
+                        </ee:message>
+                    </ee:transform>
+						<file:write doc:name="Write" doc:id="a80d61b1-5344-4416-95d3-c003449e081b" config-ref="File_Config" path="C:\Users\Stefan_Dusan_Ana\AnypointStudio\studio-workspace\zadatak2023\src\main\resources\internalERP\interni_aranzmani.xml" mode="APPEND" />
+						<logger level="INFO" doc:name="Logger" doc:id="16cf6103-ed86-4ed7-9784-dd296748c832" message="#[payload]" />
+						<ee:transform doc:name="Transform Message" doc:id="1ecc2afc-2ef5-4d08-a714-eb35f75cee97">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Aranzman je upisan!",
+  lokacija: "InternalERP"
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+                
+</otherwise>
+            </choice>
+        
+</otherwise>
+    </choice>
+</flow>
+	<flow name="getAranzmanByID" doc:id="a63c2e16-21a0-45c6-b0fd-fc2bfc2f0724">
+		<http:listener doc:name="Listener" doc:id="7f8cb7c2-a83f-4bba-87e3-32dca157e656" config-ref="main-httpListenerConfig" path="/aranzman/{aranzmanID}" allowedMethods="GET">
+			<http:response statusCode="#[vars.httpStatus]" />
+		</http:listener>
+		<db:select doc:name="Select" doc:id="695747b9-ee54-43f8-a8b2-b311f2dc8e30" config-ref="Database_Config">
+			<db:sql><![CDATA[SELECT a.aranzmanID, a.ukupna_cena, a.realizovan, a.datum_realizacije,
+h.hotelID, h.naziv, h.broj_zvezdica, h.ima_bazen, h.opis,
+d.destinacijaID, d.mesto, d.drzava, d.opis AS destinacija_opis,
+ta.turistickaAgencijaID, ta.naziv AS agencija_naziv, ta.adresa, ta.kontakt
+FROM aranzman a
+JOIN hotel h ON a.hotelID = h.hotelID
+JOIN destinacija d ON h.destinacijaID = d.destinacijaID
+JOIN turisticka_agencija ta ON a.turistickaAgencijaID = ta.turistickaAgencijaID
+WHERE a.aranzmanID = :aranzmanID]]></db:sql>
+			<db:input-parameters><![CDATA[#[{'aranzmanID' : attributes.uriParams.aranzmanID}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="873d86a4-6ede-4e5a-b275-cc3b7da3a965">
+			<when expression="#[isEmpty(payload)]">
+				<set-variable value="404" doc:name="Set HTTP Status" doc:id="22817eb9-6643-4798-b142-72669d3ddc49" variableName="httpStatus" />
+				<ee:transform doc:name="Transform Message" doc:id="ca1cf425-4a01-4c04-ab01-15c05c7fef1e">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Aranzman sa ovim ID-om je nepostojeci!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform Message" doc:id="963d7593-e4d1-4f19-ace9-65d325cc0b77">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+
+{
+  aranzmanID: payload[0].aranzmanID,
+  ukupna_cena: payload[0].ukupna_cena,
+  realizovan: payload[0].realizovan,
+  datum_realizacije: payload[0].datum_realizacije,
+  hotel: {
+    hotelID: payload[0].hotelID,
+    naziv: payload[0].naziv,
+    broj_zvezdica: payload[0].broj_zvezdica,
+    ima_bazen: payload[0].ima_bazen,
+    opis: payload[0].opis,
+    destinacija: {
+      destinacijaID: payload[0].destinacijaID,
+      mesto: payload[0].mesto,
+      drzava: payload[0].drzava,
+      opis: payload[0].destinacija_opis
+    }
+    },
+  	turisticka_agencija: {
+	  turistickaAgencijaID: payload[0].turistickaAgencijaID,
+	  naziv: payload[0].agencija_naziv,
+	  adresa: payload[0].adresa,
+	  kontakt: payload[0].kontakt
+  }
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<file:write doc:name="Write" doc:id="742caa0d-5c46-454e-b9c8-7a2fcfaa860d" config-ref="File_Config" path="C:\Users\Stefan_Dusan_Ana\AnypointStudio\studio-workspace\zadatak2023\src\main\resources\getAranzmanByID\getAranzmanByID.json" mode="APPEND" />
+				<logger level="INFO" doc:name="Logger" doc:id="25561690-553b-4a61-9d4c-37ebaea0924f" message="#[payload]" />
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="putAranzman" doc:id="4e8f42e1-5c58-404d-ac98-ecd279f197e3">
+		<http:listener doc:name="Listener" doc:id="c114212c-3fce-45ed-9b98-e8b311c605ca" config-ref="main-httpListenerConfig" allowedMethods="PUT" path="aranzman/{aranzmanID}" />
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="2bce860b-05c5-4abb-b713-aeff526e6f99" variableName="variable" />
+		<db:select doc:name="Select" doc:id="e31aab51-8a8e-48c5-b993-d95de0b86123" config-ref="Database_Config">
+			<db:sql><![CDATA[select * from aranzman where aranzmanid=:aranzmanID]]></db:sql>
+			<db:input-parameters><![CDATA[#[{aranzmanID: attributes.uriParams.aranzmanID}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="0e776b90-5d29-4c03-a239-13870b3042b6">
+			<when expression="#[isEmpty(payload)]">
+				<set-variable value="201" doc:name="Set HTTP Status" doc:id="a1b3c7fe-10a3-4c81-9d64-c4a62e1109f0" variableName="httpStatus" />
+				<db:insert doc:name="Insert" doc:id="d08b39b5-17c8-46ac-8dca-3202f11cfddf" config-ref="Database_Config">
+					<db:sql><![CDATA[INSERT INTO aranzman (aranzmanid, ukupna_cena, realizovan, datum_realizacije, hotelid, turistickaagencijaid)
+VALUES (:aranzmanid, :ukupna_cena, :realizovan, :datum_realizacije, :hotelid, :turistickaagencijaid)]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+	aranzmanid: vars."variable".aranzmanid,
+    ukupna_cena: vars."variable".ukupna_cena,
+    realizovan: vars."variable".realizovan,
+    datum_realizacije: vars."variable".datum_realizacije,
+    hotelid: vars."variable".hotel.hotelID,
+    turistickaagencijaid: vars."variable".agencija.turistickaAgencijaID
+}]]]></db:input-parameters>
+				</db:insert>
+				<ee:transform doc:name="Transform Message" doc:id="71cc6a6a-a68f-477c-b61b-f5403e46a568">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Aranzman je upisan!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<set-variable value="200" doc:name="Set HTTP Status" doc:id="df25f893-1313-42b8-9d50-7519f16998eb" variableName="httpStatus" />
+				<db:update doc:name="Update" doc:id="b038ddb5-5ac9-40a1-9cf9-9c7a9f505aec" config-ref="Database_Config">
+					<db:sql><![CDATA[update aranzman
+set aranzmanid = :aranzman_novi,
+ukupna_cena = :ukupna_cena,
+realizovan = :realizovan,
+datum_realizacije = :datum_realizacije,
+hotelid = :hotelid,
+turistickaagencijaid = :turistickaagencijaid
+where aranzmanid = :aranzmanID
+]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+	aranzmanID: payload[0].aranzmanid,
+	aranzman_novi: vars."variable".aranzmanid,
+	ukupna_cena: vars."variable".ukupna_cena,
+	realizovan:vars."variable".realizovan,
+	datum_realizacije: vars."variable".datum_realizacije,
+	hotelid: vars."variable".hotel.hotelid,
+	turistickaagencijaid: vars."variable".agencija.turistickaagencijaid
+}]]]></db:input-parameters>
+				</db:update>
+				<ee:transform doc:name="Transform Message" doc:id="eeefeb37-d241-45ae-ac36-e0839c09788b">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Aranzman je azuriran!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="deleteAranzmanByID" doc:id="10b2ad20-8862-4868-80b6-3e88739bfa75" >
+		<http:listener doc:name="Listener" doc:id="9fee52ea-a502-45ad-8246-00ba4e6f4d6e" config-ref="main-httpListenerConfig" path="/aranzman/{aranzmanID}" allowedMethods="DELETE">
+			<http:response statusCode="#[vars.httpStatus]" />
+		</http:listener>
+		<set-variable value="#[attributes.uriParams.aranzmanID]" doc:name="Set Variable" doc:id="b84b195b-555d-4efd-b5e8-2b63c1a8b49f" variableName="var"/>
+		<db:select doc:name="Select" doc:id="5803793f-6289-4fac-a6e8-f2976a13b887" config-ref="Database_Config" >
+			<db:sql ><![CDATA[select * from aranzman where aranzmanID=:aranzmanID]]></db:sql>
+			<db:parameter-types />
+			<db:input-parameters ><![CDATA[#[{'aranzmanID' : attributes.uriParams.aranzmanID}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="23e80657-afbe-42e7-b091-09bad255fcad" >
+			<when expression="#[isEmpty(payload)]" >
+				<set-variable value="404" doc:name="Set HTTP Status" doc:id="c404acc4-1651-4b24-85cb-c20f593c6afb" variableName="httpStatus" />
+				<ee:transform doc:name="Transform Message" doc:id="03da6457-98d7-4f97-a796-d225c9480e43" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Aranzman sa ovim ID-om ne postoji!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<db:delete doc:name="Delete" doc:id="41e71a31-79d2-4404-913b-1795625975bb" config-ref="Database_Config" >
+					<db:sql ><![CDATA[delete from aranzman
+where aranzmanid=:aranzmanID]]></db:sql>
+					<db:input-parameters ><![CDATA[#[{'aranzmanID' : vars."var"}]]]></db:input-parameters>
+				</db:delete>
+				<ee:transform doc:name="Transform Message" doc:id="2b63cfd4-9991-4c10-84db-62f2c24bbf10" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Aranzman je izbrisan!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+</mule>

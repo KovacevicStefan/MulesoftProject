@@ -1,0 +1,45 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:element name="aranzman">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="aranzmanID" type="xs:integer"/>
+        <xs:element name="ukupna_cena" type="xs:decimal"/>
+        <xs:element name="realizovan" type="xs:boolean"/>
+        <xs:element name="datum_realizacije" type="xs:dateTime"/>
+        <xs:element name="hotel">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="hotelID" type="xs:integer"/>
+              <xs:element name="naziv" type="xs:string"/>
+              <xs:element name="broj_zvezdica" type="xs:integer"/>
+              <xs:element name="ima_bazen" type="xs:boolean"/>
+              <xs:element name="opis" type="xs:string"/>
+              <xs:element name="destinacija">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="destinacijaID" type="xs:integer"/>
+                    <xs:element name="mesto" type="xs:string"/>
+                    <xs:element name="drzava" type="xs:string"/>
+                    <xs:element name="opis" type="xs:string"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="turisticka_agencija">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="turistickaAgencijaID" type="xs:integer"/>
+              <xs:element name="naziv" type="xs:string"/>
+              <xs:element name="adresa" type="xs:string"/>
+              <xs:element name="kontakt" type="xs:string"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_ba5e5801_9547_4002_bacb_2a28619eb614_Output_Payload = Array<{  turistickaAgencijaID: Number,   naziv: String,   adresa: String,   kontakt: String,   _?: Any}>
+

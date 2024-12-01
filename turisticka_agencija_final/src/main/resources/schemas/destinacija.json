@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "destinacijaid": {
+      "type": "integer"
+    },
+    "drzava": {
+      "type": "string"
+    },
+    "mesto": {
+      "type": "string"
+    },
+    "opis": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "destinacijaid",
+    "drzava",
+    "mesto",
+    "opis"
+  ]
+}

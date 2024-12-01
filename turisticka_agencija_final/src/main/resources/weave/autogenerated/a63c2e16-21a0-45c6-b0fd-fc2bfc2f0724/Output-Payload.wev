@@ -1,0 +1,31 @@
+%dw 2.0
+
+type auto_a63c2e16_21a0_45c6_b0fd_fc2bfc2f0724_Output_Payload = {
+  aranzmanID: Number, 
+  datum_realizacije: String, 
+  agencija: {
+    turistickaAgencijaID: Number, 
+    naziv: String, 
+    adresa: String, 
+    kontakt: String, 
+    _?: Any
+  }, 
+  hotel: {
+    broj_zvezdica: "1" | "2" | "3" | "4" | "5", 
+    naziv: String, 
+    destinacija: {
+      destinacijaID: Number, 
+      drzava: String, 
+      mesto: String, 
+      opis: String, 
+      _?: Any
+    }, 
+    hotelID: Number, 
+    opis: String, 
+    _?: Any
+  }, 
+  realizovan: Boolean, 
+  ukupna_cena: Number, 
+  _?: Any
+}
+
